@@ -2,8 +2,8 @@
   "name": "@xfos/database",
   "version": "0.1.0",
   "private": true,
-  "main": "./index.ts",
-  "types": "./index.ts",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "scripts": {
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
