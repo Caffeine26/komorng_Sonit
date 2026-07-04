@@ -23,14 +23,13 @@ const nextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        // Use 127.0.0.1 instead of localhost to force IPv4 and avoid ECONNREFUSED
-        destination: 'http://127.0.0.1:4000/api/v1/:path*',
+        // Use environment variable for production, fallback to 127.0.0.1 for local dev
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:4000'}/api/v1/:path*`,
       },
       {
         // Proxy MinIO/S3 media URLs (logos, images) through the Next.js server
-        // so Safari never sees an http://localhost:9000 URL (mixed-content block)
         source: '/xfos-media/:path*',
-        destination: 'http://127.0.0.1:9000/xfos-media/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:9000'}/xfos-media/:path*`,
       },
     ];
   },
