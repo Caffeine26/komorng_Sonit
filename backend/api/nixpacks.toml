@@ -1,0 +1,12 @@
+[providers]
+  node = {}
+
+[phases.setup]
+  nixPkgs = ["...", "chromium", "nss", "freetype", "harfbuzz", "pango"]
+  aptPkgs = ["...", "libnss3", "libatk1.0-0", "libatk-bridge2.0-0", "libcups2", "libdrm2", "libxkbcommon0", "libxcomposite1", "libxdamage1", "libxext6", "libxfixes3", "libxrandr2", "libgbm1", "libasound2", "libpangocairo-1.0-0", "libgtk-3-0"]
+
+[phases.build]
+  cmds = ["pnpm --filter '@xfos/contracts-*' build", "pnpm --filter @xfos/database prisma:generate", "pnpm --filter @xfos/backend-api build"]
+
+[start]
+  cmd = "cd backend/api && pnpm start"
