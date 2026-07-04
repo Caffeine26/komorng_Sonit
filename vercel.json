@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "backend/api/src/main.ts",
+      "use": "@vercel/node",
+      "config": {
+        "tsconfig": "backend/api/tsconfig.json"
+      }
+    },
+    {
+      "src": "frontend/storefront/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/api/src/main.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/storefront/$1"
+    }
+  ]
+}
