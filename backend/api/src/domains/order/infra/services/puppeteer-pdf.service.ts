@@ -223,7 +223,8 @@ export class PuppeteerPdfService implements IPdfGeneratorService {
 </html>
     `;
 
-    const puppeteer = await import('puppeteer');
+    // Use eval to prevent TypeScript from transpiling the dynamic import into a require() statement, which fails for ES Modules
+    const puppeteer = await (eval('import("puppeteer")') as Promise<typeof import('puppeteer')>);
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
