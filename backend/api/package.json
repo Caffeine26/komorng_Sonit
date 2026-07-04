@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "pnpm --filter @xfos/database prisma:generate && nest build",
+    "postinstall": "pnpm --filter @xfos/database prisma:generate",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
