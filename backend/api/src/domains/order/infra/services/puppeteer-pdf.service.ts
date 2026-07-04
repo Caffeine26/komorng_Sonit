@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as puppeteer from 'puppeteer';
 import { IPdfGeneratorService } from '../../core/ports/pdf-generator.service.port';
 import { OrderEntity } from '../../core/entities/order.entity';
 import { Tenant } from '../../../tenant/core/entities/tenant.entity';
@@ -224,6 +223,7 @@ export class PuppeteerPdfService implements IPdfGeneratorService {
 </html>
     `;
 
+    const puppeteer = await import('puppeteer');
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
