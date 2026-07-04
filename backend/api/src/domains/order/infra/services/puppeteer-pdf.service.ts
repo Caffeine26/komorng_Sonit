@@ -225,9 +225,20 @@ export class PuppeteerPdfService implements IPdfGeneratorService {
 
     // Use eval to prevent TypeScript from transpiling the dynamic import into a require() statement, which fails for ES Modules
     const puppeteer = await (eval('import("puppeteer")') as Promise<typeof import('puppeteer')>);
+    
+    // Find the system-installed chromium path from Railway's Nixpacks
+    const fs = require('fs');
+    let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    if (!executablePath) {
+      if (fs.existsSync('/usr/bin/chromium')) executablePath = '/usr/bin/chromium';
+      else if (fs.existsSync('/usr/bin/chromium-browser')) executablePath = '/usr/bin/chromium-browser';
+      else if (fs.existsSync('/nix/var/nix/profiles/default/bin/chromium')) executablePath = '/nix/var/nix/profiles/default/bin/chromium';
+    }
+
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
     try {
