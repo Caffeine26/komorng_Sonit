@@ -46,7 +46,7 @@ export class AdminAuthController {
     @Public()
     @Post('facebook')
     @HttpCode(HttpStatus.OK)
-    async loginWithFacebook(@Body() body: { facebookAccessToken: string }, @Res({ passthrough: true }) response: Response) {
+    async loginWithFacebook(@Body() body: { facebookAccessToken: string }, @Res({ passthrough: true }) response: any) {
         const result = await this.loginWithFacebookUseCase.execute(body.facebookAccessToken);
 
         if ((result as any).status === 'ACCOUNT_NOT_FOUND') {
@@ -61,7 +61,7 @@ export class AdminAuthController {
     @Public()
     @Post('facebook/register')
     @HttpCode(HttpStatus.OK)
-    async registerWithFacebook(@Body() body: { facebookAccessToken: string }, @Res({ passthrough: true }) response: Response) {
+    async registerWithFacebook(@Body() body: { facebookAccessToken: string }, @Res({ passthrough: true }) response: any) {
         const result = await this.registerWithFacebookUseCase.execute(body.facebookAccessToken);
         response.cookie('refresh_token', result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
         response.cookie('accessToken', result.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
@@ -79,7 +79,7 @@ export class AdminAuthController {
     @Public()
     @Post('facebook/link')
     @HttpCode(HttpStatus.OK)
-    async linkFacebook(@Body() body: { facebookAccessToken: string, telegramIdentifier: string, otp: string }, @Res({ passthrough: true }) response: Response) {
+    async linkFacebook(@Body() body: { facebookAccessToken: string, telegramIdentifier: string, otp: string }, @Res({ passthrough: true }) response: any) {
         const result = await this.linkFacebookToTelegramUseCase.execute(body.facebookAccessToken, body.telegramIdentifier, body.otp);
         response.cookie('refresh_token', result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
         response.cookie('accessToken', result.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
@@ -89,7 +89,7 @@ export class AdminAuthController {
     @Public()
     @Post('telegram')
     @HttpCode(HttpStatus.OK)
-    async loginWithTelegram(@Body() body: any, @Res({ passthrough: true }) response: Response) {
+    async loginWithTelegram(@Body() body: any, @Res({ passthrough: true }) response: any) {
         const telegramId = body.id?.toString();
         const result = await this.loginWithTelegramUseCase.execute(telegramId, body);
         response.cookie('refresh_token', result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
@@ -100,7 +100,7 @@ export class AdminAuthController {
     @Public()
     @Post('register/telegram')
     @HttpCode(HttpStatus.OK)
-    async registerWithTelegram(@Body() body: any, @Res({ passthrough: true }) response: Response) {
+    async registerWithTelegram(@Body() body: any, @Res({ passthrough: true }) response: any) {
         const telegramId = body.id?.toString();
         const result = await this.registerWithTelegramUseCase.execute(telegramId, body);
         response.cookie('refresh_token', result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
@@ -111,7 +111,7 @@ export class AdminAuthController {
     @Public()
     @Post('accept-invite')
     @HttpCode(HttpStatus.OK)
-    async acceptInvite(@Body() body: any, @Res({ passthrough: true }) response: Response) {
+    async acceptInvite(@Body() body: any, @Res({ passthrough: true }) response: any) {
         const result = await this.acceptInvitationUseCase.execute(body.inviteId, body.telegramData);
         response.cookie('refresh_token', result.rawRefreshToken, REFRESH_COOKIE_OPTIONS);
         response.cookie('accessToken', result.accessToken, ACCESS_TOKEN_COOKIE_OPTIONS);
@@ -121,7 +121,7 @@ export class AdminAuthController {
     @Public()
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
-    async refresh(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
+    async refresh(@Req() req: any, @Res({ passthrough: true }) response: any) {
         const rawRefreshToken = req.cookies['refresh_token'];
         if (!rawRefreshToken) {
             return { accessToken: null, user: null };
@@ -136,7 +136,7 @@ export class AdminAuthController {
 
     @Post('logout')
     @HttpCode(HttpStatus.OK)
-    async logout(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
+    async logout(@Req() req: any, @Res({ passthrough: true }) response: any) {
         const rawRefreshToken = req.cookies['refresh_token'];
         if (rawRefreshToken) {
             await this.logoutUseCase.execute(rawRefreshToken);

@@ -35,7 +35,7 @@ export class StorefrontAuthController {
   @HttpCode(HttpStatus.OK)
   async loginWithTelegram(
     @Body() body: any,
-    @Res({ passthrough: true }) res: Response,
+    @Res({ passthrough: true }) res: any,
   ): Promise<StorefrontTelegramLoginResponse> {
     const result = await this.telegramLoginBffUseCase.execute(body);
     
@@ -48,7 +48,7 @@ export class StorefrontAuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) response: Response, @Body() body: any) {
+  async refresh(@Req() req: any, @Res({ passthrough: true }) response: any, @Body() body: any) {
       const rawRefreshToken = req.cookies['refresh_token'];
       const sessionId = body?.sessionId;
 
@@ -84,7 +84,7 @@ export class StorefrontAuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
+  async logout(@Req() req: any, @Res({ passthrough: true }) response: any) {
       const rawRefreshToken = req.cookies['refresh_token'];
       if (rawRefreshToken) {
           await this.logoutUseCase.execute(rawRefreshToken);

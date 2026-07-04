@@ -14,7 +14,7 @@ export class DomainErrorFilter implements ExceptionFilter {
       this.logger.warn(`[DomainError] ${exception.code}: ${exception.message}`);
     }
 
-    response.status(exception.httpStatus).json({
+    (response as any).status(exception.httpStatus).json({
       code: exception.code,
       message: exception.message,
     });

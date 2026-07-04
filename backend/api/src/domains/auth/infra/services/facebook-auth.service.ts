@@ -6,7 +6,7 @@ export class FacebookAuthService implements IFacebookAuthService {
   async verifyAndGetUser(accessToken: string): Promise<FacebookUserResponse> {
     try {
       const baseUrl = process.env.FACEBOOK_API_URL || 'https://graph.facebook.com';
-      const response = await fetch(`${baseUrl}/me?fields=id,name,email,picture&access_token=${accessToken}`);
+      const response: any = await fetch(`${baseUrl}/me?fields=id,name,email,picture&access_token=${accessToken}`);
       if (!response.ok) {
         throw new Error('Failed to fetch user from Facebook');
       }

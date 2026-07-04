@@ -82,7 +82,7 @@ export class InviteTeamMemberUseCase {
 
       try {
         const telegramApiUrl = process.env.TELEGRAM_API_URL || 'https://api.telegram.org';
-        const res = await fetch(`${telegramApiUrl}/bot${botToken}/sendMessage`, {
+        const res: any = await fetch(`${telegramApiUrl}/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

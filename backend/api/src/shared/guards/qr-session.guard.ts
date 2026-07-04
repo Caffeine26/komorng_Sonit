@@ -36,7 +36,7 @@ export class QrSessionGuard implements CanActivate {
       qrContext?: { id: string; tableId: string | null; tableRef: string | null };
     }>();
 
-    const token = request.query?.['qr'] as string | undefined;
+    const token = (request as any).query?.['qr'] as string | undefined;
 
     if (!token) {
       throw new UnauthorizedException('QR token is required');

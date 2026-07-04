@@ -75,7 +75,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
     const telegramApiUrl = this.config.get<string>('TELEGRAM_API_URL') || 'https://api.telegram.org';
     while (this.isPolling) {
       try {
-        const response = await fetch(
+        const response: any = await fetch(
           `${telegramApiUrl}/bot${this.botToken}/getUpdates?offset=${this.offset}&timeout=30`,
           { method: 'GET' }
         );
@@ -247,7 +247,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
         // 5a. First time customer — ask them to share phone number
         const welcomeText = `សូមចែករំលែកលេខទូរស័ព្ទរបស់អ្នកនៅទីនេះ ដើម្បីទទួលបានវិក្កយបត្រ និងព័ត៌មានថ្មីៗ!`;
 
-        const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
+        const res: any = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -290,7 +290,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
 
     try {
       const telegramApiUrl = this.config.get<string>('TELEGRAM_API_URL') || 'https://api.telegram.org';
-      const response = await fetch(
+      const response: any = await fetch(
         `${telegramApiUrl}/bot${this.botToken}/getUserProfilePhotos?user_id=${chatId}&limit=1`
       );
       if (!response.ok) return null;
@@ -301,7 +301,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
         const largestPhoto = photos[photos.length - 1];
         const fileId = largestPhoto.file_id;
 
-        const fileResponse = await fetch(
+        const fileResponse: any = await fetch(
           `${telegramApiUrl}/bot${this.botToken}/getFile?file_id=${fileId}`
         );
         if (!fileResponse.ok) return null;
@@ -404,7 +404,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
       const welcomeText = TelegramNotificationTemplates.buildWelcomeMessage(restaurantName, roleName);
 
       const telegramApiUrl = this.config.get<string>('TELEGRAM_API_URL') || 'https://api.telegram.org';
-      const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
+      const res: any = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -510,7 +510,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
         payload.reply_markup = replyMarkup;
       }
 
-      const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
+      const res: any = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -609,7 +609,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
         formData.append('chat_id', chatId);
         formData.append('document', new Blob([pdfBuffer], { type: 'application/pdf' }), `receipt_${orderNumber}.pdf`);
 
-        const res = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendDocument`, {
+        const res: any = await fetch(`${telegramApiUrl}/bot${this.botToken}/sendDocument`, {
           method: 'POST',
           body: formData,
         });

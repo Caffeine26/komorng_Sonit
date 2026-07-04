@@ -50,7 +50,7 @@ import { AppController } from './app.controller';
 
     // In-process event bus — connects Order domain → Kitchen domain.
     // @OnEvent() handlers in KitchenModule subscribe to 'order.submitted'.
-    EventEmitterModule.forRoot({ wildcard: false, maxListeners: 20 }),
+    EventEmitterModule.forRoot({ wildcard: false, maxListeners: 20 } as any),
 
     PrismaModule,
     HealthModule,

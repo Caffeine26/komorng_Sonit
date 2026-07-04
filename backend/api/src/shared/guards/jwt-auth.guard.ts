@@ -37,7 +37,7 @@ export class JwtAuthGuard implements CanActivate {
         /**
          * 2. DEV BYPASS
          */
-        const devTenantId = request.headers['x-tenant-id'] as string;
+        const devTenantId = (request as any).headers?.['x-tenant-id'] as string;
         if (devTenantId && process.env.NODE_ENV !== 'production') {
             (request as any).user = {
                 tenantId: devTenantId,
@@ -86,9 +86,9 @@ export class JwtAuthGuard implements CanActivate {
     /**
      * Helper function to find the token in the header or cookie
      */
-    private extractBearerToken(request: Request): string | null {
+    private extractBearerToken(request: any): string | null {
         // 1. Check Authorization Header
-        const authHeader = request.headers['authorization'];
+        const authHeader = request.headers?.['authorization'];
         if (authHeader?.startsWith('Bearer ')) {
             return authHeader.slice(7);
         }

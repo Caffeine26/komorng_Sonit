@@ -147,7 +147,7 @@ export class StorefrontOrderController {
   async getOrderPdf(
     @Param('token') token: string,
     @Query('lang') lang: string,
-    @Res() res: Response
+    @Res() res: any
   ) {
     const { buffer: pdfBuffer, orderNumber } = await this.getOrderPdfUseCase.execute(token, lang);
     
