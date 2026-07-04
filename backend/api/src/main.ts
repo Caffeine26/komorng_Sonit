@@ -34,7 +34,7 @@ export async function bootstrap(expressInstance: express.Express) {
   return app;
 }
 
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+if (!process.env.VERCEL) {
   bootstrap(server).then(() => {
     const port = Number(process.env.API_PORT ?? 4000);
     const host = process.env.API_HOST ?? '0.0.0.0';
@@ -44,4 +44,11 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   });
 }
 
-export default server;
+let initializedApp: any = null;
+
+export default async (req: any, res: any) => {
+  if (!initializedApp) {
+    initializedApp = await bootstrap(server);
+  }
+  return server(req, res);
+};
