@@ -39,6 +39,7 @@ coverage/
 
 # Prisma
 database/node_modules/.prisma/
+database/src/generated/
 prisma/dev.db*
 
 # Next.js
