@@ -31,6 +31,8 @@ import { PlatformAdminModule } from './modules/platform-admin/platform-admin.mod
 import { TenantModule } from './domains/tenant/tenant.module';
 
 
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -58,7 +60,6 @@ import { TenantModule } from './domains/tenant/tenant.module';
     AuthModule,
 
     // Domain modules — internal HTTP surface (`/api/v1/internal/<domain>/*`)
-
     TenantModule,
 
     // BFF modules — public HTTP surface (`/api/v1/<bff>/*`)
@@ -67,6 +68,7 @@ import { TenantModule } from './domains/tenant/tenant.module';
     PlatformAdminModule,
 
   ],
+  controllers: [AppController],
   providers: [
     // Register JwtAuthGuard globally — all routes require a valid JWT unless
     // decorated with @Public(). This is the "fail-closed" default.
