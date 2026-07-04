@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #E91E63;
+    --primary-hover: #C2185B;
+  }
+}
+
+@layer components {
+  /* ── Primary CTA button ── */
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 w-full rounded-full bg-primary
+           text-white font-bold h-[64px] text-[16px] tracking-tight
+           shadow-[0_12px_32px_rgba(233,30,99,0.3)]
+           hover:bg-primary-hover active:scale-[0.97] transition-all;
+  }
+
+  /* ── Liquid Glass System (Apple iOS Style) ── */
+  .liquid-glass {
+    @apply bg-white/60 backdrop-blur-2xl border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)];
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Animation utility ── */
+  .animate-ui-entry {
+    animation: fadeInScale 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media print {
+  /* Hide elements with the .no-print class */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Reset background and remove shadows for printing */
+  body {
+    background-color: white !important;
+  }
+  * {
+    box-shadow: none !important;
+  }
+  
+  /* Ensure the printed content takes up the full width but respects a max width for receipt look */
+  main {
+    padding: 24px !important;
+    margin: 0 auto !important;
+    max-width: 480px !important;
+  }
+}

@@ -1,0 +1,17 @@
+packages:
+  # Backend — single NestJS package with hexagonal domains as src/ subfolders.
+  # (The architecture doc also supports one-package-per-domain; start simple,
+  # split later via `scripts/create-domain.ts` if team size demands it.)
+  - 'backend/api'
+
+  # Frontend — each app is an independent workspace (see docs/mvp/folder_structure_and_decision.md §12)
+  - 'frontend/storefront'
+  - 'frontend/kitchen'
+  - 'frontend/admin'
+  - 'frontend/platform-admin'
+
+  # Contracts — one workspace per domain; single source of truth for HTTP shapes (Zod)
+  - 'contracts/*'
+
+  # Database — the ONE Prisma schema
+  - 'database'

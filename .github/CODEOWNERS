@@ -1,0 +1,28 @@
+# Default: founder owns everything unless overridden below
+*                                 @founder
+
+# ── Frontend ──────────────────────────────────────────────────────────
+/frontend/storefront/             @storefront-dev @founder
+/frontend/kitchen/                @kitchen-dev @founder
+/frontend/admin/                  @admin-dev @founder
+/frontend/platform-admin/         @founder
+
+# ── Contracts (the HTTP wire) — senior review required ───────────────
+/contracts/                       @founder @senior-eng
+
+# ── Database (the crown jewel) — founder only ────────────────────────
+/database/                        @founder
+
+# ── Backend — per-domain owners override root rules ──────────────────
+/backend/api/src/domains/auth/       @auth-dev @founder
+/backend/api/src/domains/tenant/     @founder
+/backend/api/src/domains/catalog/    @catalog-dev @founder
+/backend/api/src/domains/order/      @order-dev @founder
+/backend/api/src/domains/billing/    @founder
+/backend/api/src/domains/kitchen/    @kitchen-dev @founder
+/backend/api/src/domains/onboarding/ @founder
+/backend/api/src/shared/             @founder @senior-eng
+
+# ── Infra / deploy ───────────────────────────────────────────────────
+/infra/                           @founder
+/.github/                         @founder

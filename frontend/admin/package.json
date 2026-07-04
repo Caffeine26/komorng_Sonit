@@ -1,0 +1,47 @@
+{
+  "name": "@xfos/frontend-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "build:tokens": "tsx design-system/build-tokens.ts",
+    "clean": "rm -rf .next node_modules"
+  },
+  "dependencies": {
+    "@xfos/contracts-bff-admin": "workspace:*",
+    "@xfos/contracts-enums": "workspace:*",
+    "@xfos/contracts-tenant": "workspace:*",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.14.0",
+    "next": "14.2.5",
+    "next-auth": "^4.24.14",
+    "next-intl": "3.17.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "^7.76.0",
+    "recharts": "^3.8.1",
+    "socket.io-client": "4.7.5",
+    "tailwind-merge": "^3.5.0",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.14",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "8.4.41",
+    "tailwindcss": "3.4.7",
+    "tsx": "4.16.2",
+    "typescript": "5.5.4",
+    "vitest": "2.0.5"
+  }
+}

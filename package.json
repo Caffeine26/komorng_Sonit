@@ -1,0 +1,42 @@
+{
+  "name": "xfos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "XFOS — multi-tenant SaaS food-ordering platform (Cambodia). Monorepo root.",
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:backend": "pnpm --filter @xfos/backend-api dev",
+    "dev:storefront": "pnpm --filter @xfos/frontend-storefront dev",
+    "dev:admin": "pnpm --filter @xfos/frontend-admin dev",
+    "dev:platform-admin": "pnpm --filter @xfos/frontend-platform-admin dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:reset": "docker compose -f infra/docker-compose.yml down -v && docker compose -f infra/docker-compose.yml up -d && sleep 3 && pnpm --filter @xfos/database prisma:migrate && pnpm --filter @xfos/database seed:kds-dev",
+    "db:migrate": "pnpm --filter @xfos/database prisma:migrate",
+    "db:generate": "pnpm --filter @xfos/database prisma:generate",
+    "db:studio": "pnpm --filter @xfos/database prisma:studio",
+    "db:seed": "pnpm --filter @xfos/database seed:kds-dev",
+    "create-domain": "tsx scripts/create-domain.ts",
+    "create-frontend-app": "tsx scripts/create-frontend-app.ts",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "2.0.9",
+    "typescript": "5.5.4",
+    "tsx": "4.16.2",
+    "prettier": "3.3.3",
+    "eslint": "8.57.0",
+    "@types/node": "20.14.14"
+  }
+}

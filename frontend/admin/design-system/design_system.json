@@ -1,0 +1,481 @@
+{
+  "name": "Komorng Admin Super Clean",
+  "version": "2.0",
+  "description": "High-fidelity, minimalist merchant portal with deep frosted glass surfaces. Focus on clarity, breathable white space, and premium layered depth.",
+  "colors": {
+    "brand": {
+      "DEFAULT": "#E91E63",
+      "foreground": "#ffffff",
+      "muted": "#FFF0F5"
+    },
+    "primary": "#E91E63",
+    "background": {
+      "page": "#FFFFFF",
+      "surface": "#FFFFFF",
+      "alt": "#F9FAFB"
+    },
+    "foreground": "#09090b",
+    "muted": "#71717a",
+    "border": "#F3F4F6",
+    "glass": {
+      "light": "rgba(255, 255, 255, 0.55)",
+      "medium": "rgba(255, 255, 255, 0.42)",
+      "strong": "rgba(255, 255, 255, 0.72)",
+      "dark": "rgba(9, 9, 11, 0.55)",
+      "brand": "rgba(233, 30, 99, 0.12)",
+      "brandMid": "rgba(233, 30, 99, 0.22)",
+      "organic": "rgba(255, 250, 253, 0.72)"
+    },
+    "glassBorder": {
+      "DEFAULT": "rgba(255, 255, 255, 0.32)",
+      "dark": "rgba(255, 255, 255, 0.10)",
+      "subtle": "rgba(255, 255, 255, 0.18)",
+      "brand": "rgba(233, 30, 99, 0.20)"
+    },
+    "glassText": {
+      "onDark": "rgba(255, 255, 255, 0.95)",
+      "onDarkSub": "rgba(255, 255, 255, 0.60)",
+      "onGlass": "rgba(9, 9, 11, 0.92)"
+    },
+    "gradient": {
+      "pageWarm": "linear-gradient(160deg, #FFFFFF 0%, #FFF0F5 100%)",
+      "glassFrost": "linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 100%)",
+      "darkScrim": "linear-gradient(180deg, transparent 40%, rgba(9,9,11,0.72) 100%)",
+      "brandGlow": "radial-gradient(ellipse at 70% 80%, rgba(233,30,99,0.35) 0%, transparent 65%)",
+      "brandOrb": "radial-gradient(ellipse, rgba(233,30,99,0.55) 0%, rgba(255,240,245,0.10) 65%)"
+    },
+    "feedback": {
+      "success": "#34C759",
+      "warning": "#FF9F0A",
+      "destructive": "#FF3B30",
+      "info": "#007AFF"
+    }
+  },
+  "spacing": {
+    "xs": "0.25rem",
+    "sm": "0.5rem",
+    "md": "1rem",
+    "lg": "1.5rem",
+    "xl": "2rem",
+    "2xl": "2.5rem"
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": [
+        "Inter",
+        "system-ui",
+        "-apple-system",
+        "sans-serif"
+      ],
+      "khmer": [
+        "Noto Sans Khmer",
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+    "fontSize": {
+      "tiny": "0.625rem",
+      "xs": "0.75rem",
+      "sm": "0.8125rem",
+      "base": "0.875rem",
+      "lg": "1rem",
+      "xl": "1.125rem",
+      "2xl": "1.25rem",
+      "3xl": "1.5rem"
+    },
+    "fontWeight": {
+      "regular": "400",
+      "medium": "500",
+      "semibold": "500",
+      "bold": "600"
+    },
+    "lineHeight": {
+      "none": "1",
+      "tight": "1.25",
+      "normal": "1.5"
+    }
+  },
+  "radius": {
+    "none": "0",
+    "sm": "0.5rem",
+    "md": "0.75rem",
+    "lg": "1rem",
+    "xl": "1.25rem",
+    "2xl": "1.5rem",
+    "full": "9999px"
+  },
+  "elevation": {
+    "none": "none",
+    "sm": "0 1px 2px rgba(0,0,0,0.05)",
+    "md": "0 4px 6px -1px rgba(0,0,0,0.1)",
+    "lg": "0 10px 15px -3px rgba(0,0,0,0.1)"
+  },
+  "blur": {
+    "none": "blur(0px)",
+    "subtle": "blur(10px) saturate(140%)",
+    "standard": "blur(22px) saturate(160%)",
+    "deep": "blur(40px) saturate(180%)",
+    "heavy": "blur(60px) saturate(200%)"
+  },
+  "shadow": {
+    "sm": "0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06)",
+    "md": "0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.10)",
+    "lg": "0 12px 32px rgba(0,0,0,0.12), 0 24px 64px rgba(0,0,0,0.14)",
+    "highlightInner": "inset 0 1px 0 rgba(255,255,255,0.55)",
+    "highlightStrong": "inset 0 1px 0 rgba(255,255,255,0.80)",
+    "brandGlow": "0 0 32px rgba(233,30,99,0.28)",
+    "brandGlowSoft": "0 0 20px rgba(233,30,99,0.16)"
+  },
+  "glass": {
+    "surfaces": {
+      "inline": {
+        "description": "Standard card / panel on a page background",
+        "background": "colors.glass.light",
+        "backdropFilter": "blur.standard",
+        "webkitBackdropFilter": "blur.standard",
+        "border": "1px solid colors.glassBorder.DEFAULT",
+        "borderRadius": "radius.lg",
+        "boxShadow": [
+          "shadow.md",
+          "shadow.highlightInner"
+        ]
+      },
+      "floating": {
+        "description": "Tab bar, sticky CTA, modal sheet",
+        "background": "colors.glass.strong",
+        "backdropFilter": "blur.deep",
+        "webkitBackdropFilter": "blur.deep",
+        "border": "1px solid colors.glassBorder.DEFAULT",
+        "borderRadius": "radius.xl",
+        "boxShadow": [
+          "shadow.lg",
+          "shadow.highlightInner"
+        ]
+      },
+      "chip": {
+        "description": "Filter pills, status tags",
+        "background": "colors.glass.medium",
+        "backdropFilter": "blur.subtle",
+        "webkitBackdropFilter": "blur.subtle",
+        "border": "1px solid colors.glassBorder.subtle",
+        "borderRadius": "radius.full",
+        "boxShadow": [
+          "shadow.sm",
+          "shadow.highlightInner"
+        ]
+      },
+      "dark": {
+        "description": "Dark overlay panel — promo banners, map controls",
+        "background": "colors.glass.dark",
+        "backdropFilter": "blur.deep",
+        "webkitBackdropFilter": "blur.deep",
+        "border": "1px solid colors.glassBorder.dark",
+        "borderRadius": "radius.xl",
+        "boxShadow": "shadow.lg",
+        "color": "colors.glassText.onDark"
+      },
+      "brand": {
+        "description": "Pink-tinted glass for brand-accented panels and KPI cards",
+        "background": "colors.glass.brand",
+        "backdropFilter": "blur.standard",
+        "webkitBackdropFilter": "blur.standard",
+        "border": "1px solid colors.glassBorder.brand",
+        "borderRadius": "radius.lg",
+        "boxShadow": [
+          "shadow.md",
+          "shadow.highlightInner",
+          "shadow.brandGlowSoft"
+        ]
+      },
+      "organic": {
+        "description": "Warm borderless glass for cards over gradient page backgrounds",
+        "background": "colors.glass.organic",
+        "backdropFilter": "blur.standard",
+        "webkitBackdropFilter": "blur.standard",
+        "border": "none",
+        "borderRadius": "radius.2xl",
+        "boxShadow": "shadow.md"
+      }
+    },
+    "fallback": {
+      "condition": "@supports not (backdrop-filter: blur(1px))",
+      "background": "rgba(255, 255, 255, 0.96)"
+    }
+  },
+  "components": {
+    "button": {
+      "primary": {
+        "background": "colors.primary",
+        "color": "colors.brand.foreground",
+        "borderRadius": "radius.full",
+        "boxShadow": [
+          "shadow.md",
+          "shadow.brandGlowSoft"
+        ],
+        "press": {
+          "transform": "scale(0.97)"
+        }
+      },
+      "secondary": {
+        "background": "colors.glass.light",
+        "backdropFilter": "blur.subtle",
+        "border": "1px solid colors.glassBorder.DEFAULT",
+        "color": "colors.foreground",
+        "borderRadius": "radius.full"
+      },
+      "ghost": {
+        "background": "transparent",
+        "color": "colors.muted",
+        "borderRadius": "radius.md"
+      },
+      "segmentedControl": {
+        "container": {
+          "background": "colors.glass.dark",
+          "borderRadius": "radius.full",
+          "padding": "spacing.xs"
+        },
+        "active": {
+          "background": "colors.primary",
+          "color": "colors.brand.foreground",
+          "borderRadius": "radius.full"
+        },
+        "inactive": {
+          "background": "transparent",
+          "color": "colors.glassText.onDark"
+        }
+      }
+    },
+    "input": {
+      "default": {
+        "background": "colors.glass.light",
+        "backdropFilter": "blur.subtle",
+        "border": "1px solid colors.border",
+        "borderRadius": "radius.md",
+        "boxShadow": "shadow.highlightInner",
+        "color": "colors.foreground",
+        "placeholderColor": "colors.muted",
+        "focus": {
+          "border": "1px solid colors.primary",
+          "boxShadow": "0 0 0 3px rgba(233,30,99,0.15)"
+        }
+      }
+    },
+    "card": {
+      "default": {
+        "background": "colors.glass.light",
+        "backdropFilter": "blur.standard",
+        "webkitBackdropFilter": "blur.standard",
+        "border": "1px solid colors.glassBorder.DEFAULT",
+        "borderRadius": "radius.lg",
+        "boxShadow": [
+          "shadow.md",
+          "shadow.highlightInner"
+        ],
+        "padding": "spacing.lg"
+      },
+      "stat": {
+        "description": "KPI / metric panel",
+        "background": "colors.glass.brand",
+        "backdropFilter": "blur.deep",
+        "border": "1px solid colors.glassBorder.brand",
+        "borderRadius": "radius.lg",
+        "boxShadow": [
+          "shadow.md",
+          "shadow.highlightInner",
+          "shadow.brandGlowSoft"
+        ],
+        "labelColor": "colors.muted",
+        "valueColor": "colors.foreground"
+      },
+      "order": {
+        "description": "Restaurant order tracking card",
+        "background": "colors.background.surface",
+        "border": "1px solid colors.border",
+        "borderRadius": "radius.lg",
+        "boxShadow": "elevation.sm",
+        "padding": "spacing.md"
+      }
+    },
+    "navbar": {
+      "background": "colors.glass.strong",
+      "backdropFilter": "blur.deep",
+      "webkitBackdropFilter": "blur.deep",
+      "borderBottom": "1px solid colors.glassBorder.DEFAULT",
+      "height": "56px",
+      "boxShadow": "shadow.lg"
+    },
+    "sidebar": {
+      "background": "colors.background.surface",
+      "border": "1px solid colors.border",
+      "activeItem": {
+        "background": "colors.brand.muted",
+        "borderRadius": "radius.md",
+        "color": "colors.primary",
+        "fontWeight": "typography.fontWeight.semibold"
+      },
+      "inactiveItem": {
+        "color": "colors.muted",
+        "fontWeight": "typography.fontWeight.regular"
+      }
+    },
+    "badge": {
+      "brand": {
+        "background": "colors.primary",
+        "color": "colors.brand.foreground",
+        "borderRadius": "radius.full",
+        "fontSize": "typography.fontSize.xs"
+      },
+      "muted": {
+        "background": "colors.brand.muted",
+        "color": "colors.primary",
+        "borderRadius": "radius.full",
+        "fontSize": "typography.fontSize.xs"
+      },
+      "glass": {
+        "background": "colors.glass.medium",
+        "backdropFilter": "blur.subtle",
+        "border": "1px solid colors.glassBorder.DEFAULT",
+        "color": "colors.foreground",
+        "borderRadius": "radius.full",
+        "fontSize": "typography.fontSize.xs"
+      }
+    },
+    "listRow": {
+      "borderBottom": "1px solid colors.border",
+      "padding": "spacing.md spacing.lg",
+      "labelColor": "colors.foreground",
+      "valueColor": "colors.muted",
+      "fontSize": "typography.fontSize.sm"
+    },
+    "statusChip": {
+      "pending": {
+        "background": "rgba(255,159,10,0.12)",
+        "color": "colors.feedback.warning",
+        "border": "1px solid rgba(255,159,10,0.25)",
+        "borderRadius": "radius.full"
+      },
+      "active": {
+        "background": "rgba(52,199,89,0.12)",
+        "color": "colors.feedback.success",
+        "border": "1px solid rgba(52,199,89,0.25)",
+        "borderRadius": "radius.full"
+      },
+      "cancelled": {
+        "background": "rgba(255,59,48,0.10)",
+        "color": "colors.feedback.destructive",
+        "border": "1px solid rgba(255,59,48,0.22)",
+        "borderRadius": "radius.full"
+      },
+      "brand": {
+        "background": "colors.brand.muted",
+        "color": "colors.primary",
+        "border": "1px solid rgba(233,30,99,0.20)",
+        "borderRadius": "radius.full"
+      }
+    }
+  },
+  "motion": {
+    "easing": {
+      "ios": "cubic-bezier(0.32, 0.72, 0, 1)",
+      "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      "smooth": "cubic-bezier(0.4, 0, 0.2, 1)"
+    },
+    "duration": {
+      "fast": "180ms",
+      "standard": "280ms",
+      "slow": "420ms"
+    },
+    "press": {
+      "scale": "0.97",
+      "transition": "transform 180ms cubic-bezier(0.32, 0.72, 0, 1)"
+    }
+  },
+  "layout": {
+    "maxWidth": "390px",
+    "screenPadding": "spacing.lg",
+    "cardGap": "spacing.md",
+    "sectionGap": "spacing.xl",
+    "touchTarget": "44px",
+    "safeAreaTop": "54px",
+    "safeAreaBottom": "34px"
+  },
+  "cssVariables": {
+    "comment": "Paste inside :root {} in your global stylesheet",
+    "tokens": {
+      "--color-brand": "#E91E63",
+      "--color-brand-muted": "#FFF0F5",
+      "--color-foreground": "#09090b",
+      "--color-muted": "#71717a",
+      "--color-border": "#F3F4F6",
+      "--color-bg-page": "#FFFFFF",
+      "--color-bg-surface": "#FFFFFF",
+      "--color-bg-alt": "#F9FAFB",
+      "--glass-light": "rgba(255, 255, 255, 0.55)",
+      "--glass-medium": "rgba(255, 255, 255, 0.42)",
+      "--glass-strong": "rgba(255, 255, 255, 0.72)",
+      "--glass-dark": "rgba(9, 9, 11, 0.55)",
+      "--glass-brand": "rgba(233, 30, 99, 0.12)",
+      "--glass-brand-mid": "rgba(233, 30, 99, 0.22)",
+      "--glass-border": "rgba(255, 255, 255, 0.32)",
+      "--glass-border-dark": "rgba(255, 255, 255, 0.10)",
+      "--glass-border-brand": "rgba(233, 30, 99, 0.20)",
+      "--text-on-dark": "rgba(255, 255, 255, 0.95)",
+      "--text-on-dark-sub": "rgba(255, 255, 255, 0.60)",
+      "--blur-subtle": "blur(10px) saturate(140%)",
+      "--blur-standard": "blur(22px) saturate(160%)",
+      "--blur-deep": "blur(40px) saturate(180%)",
+      "--shadow-sm": "0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06)",
+      "--shadow-md": "0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.10)",
+      "--shadow-lg": "0 12px 32px rgba(0,0,0,0.12), 0 24px 64px rgba(0,0,0,0.14)",
+      "--shadow-highlight": "inset 0 1px 0 rgba(255,255,255,0.55)",
+      "--shadow-brand-glow": "0 0 32px rgba(233,30,99,0.28)",
+      "--shadow-brand-soft": "0 0 20px rgba(233,30,99,0.16)",
+      "--radius-sm": "0.5rem",
+      "--radius-md": "0.75rem",
+      "--radius-lg": "1rem",
+      "--radius-xl": "1.25rem",
+      "--radius-2xl": "1.5rem",
+      "--radius-full": "9999px",
+      "--ease-ios": "cubic-bezier(0.32, 0.72, 0, 1)",
+      "--dur-fast": "180ms",
+      "--dur-standard": "280ms",
+      "--dur-slow": "420ms",
+      "--font-sans": "Inter, system-ui, -apple-system, sans-serif",
+      "--font-khmer": "Noto Sans Khmer, system-ui, sans-serif",
+      "--touch-target": "44px",
+      "--screen-padding": "1.5rem"
+    }
+  },
+  "concepts": {
+    "focus": "Clean and efficient dashboard interface designed for fast-paced restaurant environments with premium deep frosted glass depth.",
+    "layout_dna": [
+      "super-clean-minimalism",
+      "high-contrast-clarity",
+      "breathable-whitespace",
+      "razor-thin-borders",
+      "deep-frosted-glass-depth",
+      "layered-transparency"
+    ],
+    "keywords": [
+      "status-driven-order-tracking",
+      "minimalist-item-cards",
+      "sharp-typography-hierarchy",
+      "pro-max-restaurant-ux",
+      "ios-liquid-glass-surfaces",
+      "brand-pink-glass-tint"
+    ],
+    "glassRules": [
+      "Max 3 depth layers: background → content surface → floating element",
+      "Never stack glass over glass — place glass only over imagery or solid backgrounds",
+      "Primary CTAs are always opaque brand color (#E91E63), never glass",
+      "Text on glass must pass WCAG AA — add tint scrim if needed",
+      "Always pair backdrop-filter with -webkit-backdrop-filter for Safari"
+    ],
+    "iconography": {
+      "standard_size": 20,
+      "stroke_width": 2,
+      "inactive_color": "#9CA3AF",
+      "active_color": "#E91E63"
+    }
+  }
+}

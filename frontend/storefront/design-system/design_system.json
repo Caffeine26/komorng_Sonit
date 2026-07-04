@@ -1,0 +1,127 @@
+{
+  "name": "XFOS Liquid Glass Design System",
+  "version": "1.0",
+  "description": "Customer mobile web — QR-accessed food ordering. Mobile-first, Khmer-ready. Liquid Glass Premium Design.",
+  "colors": {
+    "primary": "var(--primary)",
+    "primary-hover": "var(--primary-hover)",
+    "background": {
+      "page": "#F5F5F5",
+      "surface": "#FFFFFF"
+    },
+    "text": {
+      "heading": "#18181B",
+      "body": "#52525B",
+      "muted": "#71717A",
+      "inverse": "#FFFFFF"
+    },
+    "glass": {
+      "light": "rgba(255, 255, 255, 0.65)",
+      "medium": "rgba(255, 255, 255, 0.40)",
+      "solid": "rgba(255, 255, 255, 0.80)"
+    },
+    "overlay": {
+      "dim": "rgba(0, 0, 0, 0.25)",
+      "light": "rgba(255, 255, 255, 0.10)"
+    },
+    "semantic": {
+      "success": "#059669",
+      "warning": "#D97706",
+      "danger": "#DC2626"
+    }
+  },
+  "spacing": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px",
+    "xl": "32px",
+    "safe_area": "56px"
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": ["Inter", "system-ui", "-apple-system", "sans-serif"],
+      "khmer": ["Noto Sans Khmer", "system-ui", "sans-serif"]
+    },
+    "fontSize": {
+      "xs": "11px",
+      "sm": "12px",
+      "md": "15px",
+      "lg": "16px",
+      "xl": "20px",
+      "2xl": "24px",
+      "3xl": "30px",
+      "4xl": "36px"
+    }
+  },
+  "radius": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px",
+    "pill": "9999px"
+  },
+  "blur": {
+    "light": "4px",
+    "medium": "12px",
+    "heavy": "32px",
+    "extreme": "40px"
+  },
+  "shadow": {
+    "soft": "0 2px 8px rgba(0, 0, 0, 0.05)",
+    "medium": "0 14px 20px rgba(0, 0, 0, 0.15)",
+    "elevated": "20px 0 40px rgba(0, 0, 0, 0.15)",
+    "inner_glass": "inset -1px 0 0 rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.9)"
+  },
+  "effects": {
+    "liquid_glass": {
+      "backgroundColor": "colors.glass.light",
+      "backdropFilter": "blur(blur.heavy) saturate(180%)",
+      "boxShadow": "shadow.inner_glass"
+    },
+    "soft_blur_overlay": {
+      "backgroundColor": "colors.overlay.dim",
+      "backdropFilter": "blur(blur.medium)"
+    },
+    "glass_button": {
+      "backgroundColor": "colors.glass.solid",
+      "border": "1px solid rgba(255, 255, 255, 0.8)",
+      "boxShadow": "shadow.soft",
+      "borderRadius": "radius.pill"
+    }
+  },
+  "components": {
+    "nav_header": {
+      "layout": "fixed top, flex justified between, z-index 50",
+      "behavior": "Sticky over page content, transparent base with glass elements",
+      "style": {
+        "pills": "effects.glass_button",
+        "padding": "spacing.md"
+      }
+    },
+    "cart_footer": {
+      "layout": "fixed bottom, centered U-shape floating FAB, z-index 60",
+      "behavior": "Floating action bar, persistent across views",
+      "style": {
+        "background": "effects.liquid_glass",
+        "shadow": "shadow.medium",
+        "padding": "spacing.lg"
+      }
+    },
+    "sidebar": {
+      "layout": "fixed left, w-75% mobile, w-25% desktop, z-index 9999",
+      "behavior": "Slide-in drawer with soft background overlay",
+      "style": {
+        "overlay": "effects.soft_blur_overlay",
+        "background": "effects.liquid_glass",
+        "shadow": "shadow.elevated",
+        "radius": "radius.xl (right side only)"
+      }
+    },
+    "page_layout": {
+      "background": "colors.background.page",
+      "paddingTop": "80px (clear header)",
+      "paddingBottom": "100px (clear footer)"
+    }
+  }
+}

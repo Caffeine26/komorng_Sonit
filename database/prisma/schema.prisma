@@ -1,0 +1,1568 @@
+// XFOS database schema — single source of truth for all tables.
+// Mirrors docs/discussions/tables/postgresql-schema.md (the canonical DDL doc).
+//
+// CONVENTIONS (locked in 2026-04-25/26):
+//   - Tenant-scoped tables use composite PK @@id([tenantId, id]) and composite
+//     FKs (fields: [tenantId, parentId], references: [tenantId, id]). This makes
+//     cross-tenant linking impossible by construction — no parity triggers.
+//   - Globally-scoped tables (Tenant, User, UserAuthProvider, RefreshToken,
+//     PhoneOtpAttempt, Plan, PlanFeature, Subscription) keep single-column @id.
+//   - Junction tables with nullable tenantId (UserRole, AuditLog) keep
+//     single-column @id; application enforces tenant scoping.
+//   - IDs: @default(cuid()).
+//   - Money: Int cents (e.g. totalCents, priceCents) — NEVER float/numeric.
+//   - Currency: Currency enum (USD | KHR), default USD.
+//   - Locale: Locale enum (en | km).
+//   - Timestamps: createdAt DateTime @default(now()); updatedAt DateTime @updatedAt.
+//   - Bilingual content lives inline as nameKm + nameEn columns (no translation
+//     tables since 2026-04-23).
+//
+// THINGS PRISMA DSL DOES NOT EXPRESS (see scripts/20260410_mvp_hardening.sql):
+//   - CHECK constraints (60+ across the schema)
+//   - Partial indexes (UNIQUE WHERE x = y, etc.)
+//   - GENERATED ALWAYS AS ... STORED columns (setupProgress.goLiveReady)
+//   - Helper functions (allocate_order_number, allocate_bill_number,
+//     cleanup_expired_idempotency_keys)
+//   - Postgres extensions (citext)
+//
+// All of these are applied by the hardening migration AFTER `prisma migrate deploy`.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi", "relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum TenantStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum ServiceModel {
+  STALL_KIOSK
+  DINE_IN_TABLE
+}
+
+enum PayTiming {
+  PAY_BEFORE
+  PAY_AFTER
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum Role {
+  PLATFORM_ADMIN
+  PLATFORM_STAFF
+  TENANT_OWNER
+  TENANT_MANAGER
+  SERVICE_STAFF
+  KITCHEN_STAFF
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  // EXPIRED is derived from expires_at; not stored.
+}
+
+enum QrContextType {
+  STOREFRONT
+  TABLE
+}
+
+enum QrDeactivationReason {
+  REGENERATED
+  MERCHANT_DISABLED
+  LOST_OR_DAMAGED
+  EXPIRED_AUTO
+  TABLE_REMOVED
+  TENANT_DEACTIVATED
+}
+
+enum OrderSessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum OrderSessionCloseReason {
+  PAID
+  STAFF_FORCE_CLOSED
+  AUTO_TIMEOUT_24H
+  WALKED_AWAY
+}
+
+enum CartStatus {
+  ACTIVE
+  CONVERTED
+  ABANDONED
+}
+
+enum CartAbandonedReason {
+  SESSION_PAID
+  SESSION_FORCE_CLOSED
+  STAFF_RESET
+  SESSION_TIMEOUT
+  CUSTOMER_DISMISSED
+}
+
+enum OrderStatus {
+  // PENDING_PAYMENT — STALL_KIOSK orders awaiting cash confirmation.
+  // Track H's confirm-cash-payment use case transitions PENDING_PAYMENT → SUBMITTED.
+  PENDING_PAYMENT
+  SUBMITTED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderCancellationReason {
+  CUSTOMER_REQUEST
+  OUT_OF_STOCK
+  KITCHEN_OVERLOADED
+  PAYMENT_FAILED
+  DUPLICATE
+  STAFF_ERROR
+  SYSTEM_TIMEOUT
+}
+
+enum OrderSource {
+  STOREFRONT_QR
+  MERCHANT_MANUAL
+  API
+  MOBILE_APP
+}
+
+enum TableShape {
+  RECTANGLE
+  CIRCLE
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+}
+
+enum BillStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  ABA_QR
+  CARD
+}
+
+enum TicketStatus {
+  NEW
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+  // SERVED — terminal state for DINE_IN_TABLE tickets that have been
+  // delivered to the customer. STALL_KIOSK uses COMPLETED instead.
+  // Added 2026-04-30 to close the contracts/Prisma gap surfaced by Track B.
+  SERVED
+}
+
+enum AuthProvider {
+  TELEGRAM
+  FACEBOOK
+  PHONE
+  PASSWORD
+  GOOGLE
+}
+
+enum AuditCategory {
+  ORDER
+  BILLING
+  KITCHEN
+  CATALOG
+  AUTH
+  TENANT
+  PLATFORM
+  SYSTEM
+}
+
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARNING
+  ALERT
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+  WEBHOOK
+  CRON
+  API_KEY
+}
+
+enum Locale {
+  en
+  km
+}
+
+enum Currency {
+  USD
+  KHR
+}
+
+// =============================================================================
+// TENANT — the crown jewel
+// =============================================================================
+
+model Tenant {
+  id         String       @id @default(cuid())
+  slug       String       @unique
+  codePrefix String       @unique @map("code_prefix") // 2–4 uppercase Latin letters
+  nameEn     String       @map("name_en")
+  nameKm     String?      @map("name_km")
+  status     TenantStatus @default(DRAFT)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  // Tenant-scoped children (1:1)
+  settings      TenantSettings?
+  setupProgress SetupProgress?
+  health        TenantHealth?
+  sequences     TenantSequence?
+
+  // Tenant-scoped children (1:N)
+  operatingHours       TenantOperatingHours[]
+  paymentMethods       TenantPaymentMethod[]
+  subscriptions        Subscription[]
+  userRoles            UserRole[]
+  refreshTokens        RefreshToken[]
+  invitations          Invitation[]
+  menuCategories       MenuCategory[]
+  menuItems            MenuItem[]
+  menuItemImages       MenuItemImage[]
+  menuItemVariants     MenuItemVariant[]
+  menuItemOptionGroups MenuItemOptionGroup[]
+  menuItemOptions      MenuItemOption[]
+  floorPlans           FloorPlan[]
+  tables               Table[]
+  qrContexts           QrContext[]
+  orderSessions        OrderSession[]
+  carts                Cart[]
+  cartItems            CartItem[]
+  orders               Order[]
+  orderItems           OrderItem[]
+  orderStatusHistory   OrderStatusHistory[]
+  idempotencyKeys      IdempotencyKey[]
+  bills                Bill[]
+  billOrders           BillOrder[]
+  payments             Payment[]
+  kitchenTickets       KitchenTicket[]
+  kitchenTicketEvents  KitchenTicketEvent[]
+  auditLogs            AuditLog[]
+  customers            TenantCustomer[]
+  notificationTemplates NotificationTemplate[]
+  notifications         TenantNotification[]
+
+  @@map("tenants")
+}
+
+/// Per-tenant operational + branding configuration. One row per tenant
+/// (enforced by composite PK + UNIQUE(tenantId)).
+model TenantSettings {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  serviceModel     ServiceModel @default(STALL_KIOSK) @map("service_model")
+  payTiming        PayTiming    @default(PAY_BEFORE) @map("pay_timing")
+  defaultLocale    Locale       @default(km) @map("default_locale")
+  timezone         String       @default("Asia/Phnom_Penh")
+  currency         Currency     @default(USD)
+  autoAcceptOrders Boolean      @default(true) @map("auto_accept_orders")
+
+  // Tax
+  taxRateBps   Int     @default(0) @map("tax_rate_bps")
+  taxInclusive Boolean @default(true) @map("tax_inclusive")
+
+  // JSONB structured fields
+  businessContacts Json  @default("[]") @map("business_contacts")
+  description      Json?
+  address          Json?
+
+  // GPS (separate columns for numeric math)
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  googleMapsUrl String?  @map("google_maps_url")
+
+  // Branding
+  primaryColor  String? @map("primary_color")
+  logoUrl       String? @map("logo_url")
+  coverImageUrl String? @map("cover_image_url")
+
+  // Social links
+  socialLinks Json? @map("social_links")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId])
+  @@map("tenant_settings")
+}
+
+model TenantOperatingHours {
+  tenantId  String   @map("tenant_id")
+  id        String   @default(cuid())
+  dayOfWeek Int      @map("day_of_week") // 0=Sunday, 6=Saturday
+  openTime  DateTime @map("open_time") @db.Time
+  closeTime DateTime @map("close_time") @db.Time
+  isClosed  Boolean  @default(false) @map("is_closed")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, dayOfWeek, openTime])
+  @@map("tenant_operating_hours")
+}
+
+model TenantPaymentMethod {
+  tenantId  String        @map("tenant_id")
+  id        String        @default(cuid())
+  method    PaymentMethod
+  provider  String? // 'aba' | 'wing' | 'stripe' | NULL for cash
+  isEnabled Boolean       @default(true) @map("is_enabled")
+  config    Json?
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, method, provider])
+  @@map("tenant_payment_methods")
+}
+
+/// Onboarding checklist — one row per tenant.
+/// Note: `goLiveReady` is a Postgres GENERATED STORED column installed by
+/// the hardening migration (Prisma DSL doesn't express generated columns).
+model SetupProgress {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  // Milestone timestamps. NULL = not yet completed. Monotonic.
+  profileCompletedAt      DateTime? @map("profile_completed_at")
+  menuCompletedAt         DateTime? @map("menu_completed_at")
+  translationsCompletedAt DateTime? @map("translations_completed_at")
+  paymentsConfiguredAt    DateTime? @map("payments_configured_at")
+  qrCreatedAt             DateTime? @map("qr_created_at")
+
+  // Lifetime bookends
+  createdAt  DateTime  @default(now()) @map("created_at")
+  wentLiveAt DateTime? @map("went_live_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  // Generated column added via raw SQL migration (see hardening script).
+  // goLiveReady Boolean — Prisma sees it via @@ignore-style read-only access in generated client.
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId])
+  @@map("setup_progress")
+}
+
+model TenantHealth {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  translationsHealthy Boolean @default(true) @map("translations_healthy")
+  paymentsHealthy     Boolean @default(true) @map("payments_healthy")
+  menuHasVisibleItems Boolean @default(true) @map("menu_has_visible_items")
+
+  translationsBrokenAt DateTime? @map("translations_broken_at")
+  paymentsBrokenAt     DateTime? @map("payments_broken_at")
+  menuBrokenAt         DateTime? @map("menu_broken_at")
+
+  untranslatedItemCount Int @default(0) @map("untranslated_item_count")
+  disabledPaymentCount  Int @default(0) @map("disabled_payment_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId])
+  @@map("tenant_health")
+}
+
+/// Platform-level subscription tier catalog. Globally scoped — single-column id.
+model Plan {
+  id   String @id @default(cuid())
+  code String @unique // 'STARTER' | 'GROWTH' | 'PRO'
+
+  nameEn           String  @map("name_en")
+  nameKm           String  @map("name_km")
+  taglineEn        String? @map("tagline_en")
+  taglineKm        String? @map("tagline_km")
+  highlightLabelEn String? @map("highlight_label_en")
+  highlightLabelKm String? @map("highlight_label_km")
+
+  priceCents      Int?     @map("price_cents") // NULL = custom / contact sales
+  currency        Currency @default(USD)
+  billingInterval String   @default("MONTHLY") @map("billing_interval")
+
+  isActive     Boolean @default(true) @map("is_active")
+  isPublic     Boolean @default(false) @map("is_public")
+  displayOrder Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanFeature {
+  id           String   @id @default(cuid())
+  planId       String   @map("plan_id")
+  featureKey   String   @map("feature_key")
+  value        Json
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureKey])
+  @@index([planId])
+  @@map("plan_features")
+}
+
+/// Full history table — every subscription period is its own row; at most one
+/// ACTIVE row per tenant (enforced by partial unique index in hardening migration).
+/// Globally-scoped from Prisma's POV (single-column id) but tenantId is NOT NULL.
+model Subscription {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+
+  planId          String   @map("plan_id")
+  planCode        String   @map("plan_code")
+  priceCents      Int      @map("price_cents")
+  currency        Currency @default(USD)
+  billingInterval String   @default("MONTHLY") @map("billing_interval")
+
+  status SubscriptionStatus @default(PENDING)
+
+  startedAt          DateTime? @map("started_at")
+  currentPeriodStart DateTime? @map("current_period_start")
+  currentPeriodEnd   DateTime? @map("current_period_end")
+  cancelAt           DateTime? @map("cancel_at")
+  cancelledAt        DateTime? @map("cancelled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([tenantId])
+  @@map("subscriptions")
+}
+
+/// Per-tenant counters. tenantId IS the primary key (one row per tenant).
+/// CHECKs (next_order_counter >= 1, next_bill_number >= 1, reset_date sane)
+/// installed by hardening migration.
+model TenantSequence {
+  tenantId         String   @id @map("tenant_id")
+  nextOrderCounter Int      @default(1) @map("next_order_counter")
+  countersResetOn  DateTime @default(now()) @map("counters_reset_on") @db.Date
+  nextBillNumber   BigInt   @default(1) @map("next_bill_number")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_sequences")
+}
+
+// =============================================================================
+// AUTH — identity, sessions, roles
+// =============================================================================
+
+/// Global identity record. Single-column id PK by design — users span tenants.
+model User {
+  id              String     @id @default(cuid())
+  email           String?    @unique
+  phone           String?    @unique
+  fullName        String?    @map("full_name")
+  avatarUrl       String?    @map("avatar_url")
+  phoneVerified   Boolean    @default(false) @map("phone_verified")
+  phoneVerifiedAt DateTime?  @map("phone_verified_at")
+  status          UserStatus @default(PENDING)
+  lastLoginAt     DateTime?  @map("last_login_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  authProviders UserAuthProvider[]
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  // Single-column FK back-relations (FKs into users stay single-col because users is global).
+  invitationsSent       Invitation[]         @relation("InvitationInviter")
+  cartsClosed           Cart[]               @relation("CartClosedBy")
+  ordersCreated         Order[]              @relation("OrderCreator")
+  ordersCancelled       Order[]              @relation("OrderCanceller")
+  customerOrders        Order[]              @relation("OrderUser")
+  orderItemsCancelled   OrderItem[]          @relation("OrderItemCanceller")
+  billsClosed           Bill[]               @relation("BillClosedBy")
+  billsVoided           Bill[]               @relation("BillVoidedBy")
+  paymentsConfirmed     Payment[]            @relation("PaymentConfirmer")
+  paymentsRefunded      Payment[]            @relation("PaymentRefunder")
+  ticketsStarted        KitchenTicket[]      @relation("TicketStartedBy")
+  ticketsMarkedReady    KitchenTicket[]      @relation("TicketMarkedReadyBy")
+  ticketsCompleted      KitchenTicket[]      @relation("TicketCompletedBy")
+  ticketsCancelled      KitchenTicket[]      @relation("TicketCancelledBy")
+  ticketEventsChanged   KitchenTicketEvent[] @relation("TicketEventChangedBy")
+  orderStatusChanges    OrderStatusHistory[] @relation("OrderStatusChangedBy")
+  qrContextsCreated     QrContext[]          @relation("QrContextCreatedBy")
+  qrContextsDeactivated QrContext[]          @relation("QrContextDeactivatedBy")
+  sessionsOpened        OrderSession[]       @relation("SessionOpenedBy")
+  sessionsServed        OrderSession[]       @relation("SessionServedBy")
+  sessionsClosed        OrderSession[]       @relation("SessionClosedBy")
+  idempotencyKeys       IdempotencyKey[]
+  auditLogs             AuditLog[]
+  TenantCustomer        TenantCustomer[]
+  tenantNotifications   TenantNotification[]
+
+  @@map("users")
+}
+
+model UserAuthProvider {
+  id          String       @id @default(cuid())
+  userId      String       @map("user_id")
+  provider    AuthProvider
+  providerId  String       @map("provider_id")
+  displayName String?      @map("display_name")
+  avatarUrl   String?      @map("avatar_url")
+  metadata    Json?
+  linkedAt    DateTime     @default(now()) @map("linked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+  @@map("user_auth_providers")
+}
+
+model PhoneOtpAttempt {
+  id           String    @id @default(cuid())
+  phone        String
+  otpHash      String    @map("otp_hash")
+  purpose      String // 'signup' | 'login' | 'reverify' | 'add_phone'
+  expiresAt    DateTime  @map("expires_at")
+  attemptCount Int       @default(0) @map("attempt_count")
+  usedAt       DateTime? @map("used_at")
+  ipAddress    String?   @map("ip_address") @db.Inet
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  // Indexes (partial indexes for active OTP / cleanup are added via raw SQL migration).
+  @@index([phone, createdAt(sort: Desc)])
+  @@map("phone_otp_attempts")
+}
+
+/// Junction: user ↔ tenant ↔ role. tenantId is NULLABLE for PLATFORM_ADMIN /
+/// PLATFORM_STAFF. Single-column id PK + NULLS NOT DISTINCT unique.
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  tenantId  String?  @map("tenant_id")
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // NULLS NOT DISTINCT (PG 15+) — added via raw SQL migration.
+  // @@unique([userId, tenantId, role]) -- Prisma's default treats NULLs as distinct; raw SQL fixes it.
+  @@index([userId])
+  @@index([tenantId])
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tenantId  String?   @map("tenant_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, tenantId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Invitation {
+  tenantId    String           @map("tenant_id")
+  id          String           @default(cuid())
+  email       String?
+  channel     String           @default("telegram") // 'telegram' | 'facebook_messenger'
+  channelId   String?          @map("channel_id")
+  role        Role // CHECK (role IN tenant-scoped) added via raw SQL.
+  tokenHash   String           @unique @map("token_hash")
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime         @map("expires_at")
+  acceptedAt  DateTime?        @map("accepted_at")
+  invitedById String?          @map("invited_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedBy User?  @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("invitations")
+}
+
+// =============================================================================
+// CATALOG — menu categories, items, variants, options
+// =============================================================================
+
+model MenuCategory {
+  tenantId  String    @map("tenant_id")
+  id        String    @default(cuid())
+  nameKm    String    @map("name_km")
+  nameEn    String    @map("name_en")
+  sortOrder Int       @default(0) @map("sort_order")
+  isActive  Boolean   @default(true) @map("is_active")
+  icon      String?
+  urlBanner String?   @map("url_banner")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  MenuItem[]
+
+  @@id([tenantId, id])
+  // Active-only sort_order index added via raw SQL (partial index).
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  tenantId   String  @map("tenant_id")
+  id         String  @default(cuid())
+  categoryId String? @map("category_id")
+
+  nameKm        String  @map("name_km")
+  nameEn        String? @map("name_en")
+  descriptionKm String? @map("description_km")
+  descriptionEn String? @map("description_en")
+
+  basePriceCents Int?     @map("base_price_cents") // CHECK >=0 in raw SQL.
+  costCents      Int?     @map("cost_cents")
+  currency       Currency @default(USD)
+  unit           String?
+  sku            String?
+  isAvailable    Boolean  @default(true) @map("is_available")
+  isVisible      Boolean  @default(true) @map("is_visible")
+  sortOrder      Int      @default(0) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category     MenuCategory?         @relation(fields: [tenantId, categoryId], references: [tenantId, id])
+  images       MenuItemImage[]
+  variants     MenuItemVariant[]
+  optionGroups MenuItemOptionGroup[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+
+  @@id([tenantId, id])
+  @@index([tenantId, categoryId])
+  @@map("menu_items")
+}
+
+model MenuItemImage {
+  tenantId   String @map("tenant_id")
+  id         String @default(cuid())
+  menuItemId String @map("menu_item_id")
+
+  imageUrl  String  @map("image_url")
+  altTextKm String? @map("alt_text_km")
+  altTextEn String? @map("alt_text_en")
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [tenantId, menuItemId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, menuItemId, sortOrder], map: "idx_menu_item_images_item_order")
+  // Partial unique on is_primary added via raw SQL.
+  @@map("menu_item_images")
+}
+
+model MenuItemVariant {
+  tenantId   String @map("tenant_id")
+  id         String @default(cuid())
+  menuItemId String @map("menu_item_id")
+  attributeNameEn String @map("attributeNameEn")
+  attributeNameKm String @map("attributeNameKm")
+  nameKm     String  @map("name_km")
+  nameEn     String? @map("name_en")
+  priceCents Int     @map("price_cents")
+  costCents  Int?    @map("cost_cents")
+  sku        String?
+
+  isAvailable Boolean @default(true) @map("is_available")
+  isDefault   Boolean @default(false) @map("is_default")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [tenantId, menuItemId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  // Partial indexes (active-only sort, default-uniqueness) added via raw SQL.
+  @@map("menu_item_variants")
+}
+
+model MenuItemOptionGroup {
+  tenantId   String @map("tenant_id")
+  id         String @default(cuid())
+  menuItemId String @map("menu_item_id")
+
+  nameKm    String  @map("name_km")
+  nameEn    String? @map("name_en")
+  minSelect Int     @default(0) @map("min_select")
+  maxSelect Int     @default(1) @map("max_select")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  menuItem MenuItem         @relation(fields: [tenantId, menuItemId], references: [tenantId, id], onDelete: Cascade)
+  options  MenuItemOption[]
+
+  @@id([tenantId, id])
+  @@index([tenantId, menuItemId, sortOrder])
+  @@map("menu_item_option_groups")
+}
+
+model MenuItemOption {
+  tenantId      String @map("tenant_id")
+  id            String @default(cuid())
+  menuItemId    String @map("menu_item_id")
+  optionGroupId String @map("option_group_id")
+  imageUrl      String? @map("image_url")
+  nameKm        String  @map("name_km")
+  nameEn        String? @map("name_en")
+  priceDeltaCents Int     @default(0) @map("price_delta_cents")
+  isAvailable     Boolean @default(true) @map("is_available")
+  sortOrder       Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  optionGroup MenuItemOptionGroup @relation(fields: [tenantId, optionGroupId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, optionGroupId, sortOrder])
+  @@map("menu_item_options")
+}
+
+// =============================================================================
+// ORDER — floor plans, tables, QR, sessions, carts, orders
+// =============================================================================
+
+model FloorPlan {
+  tenantId  String   @map("tenant_id")
+  id        String   @default(cuid())
+  name      String
+  width     Int      @default(1000)
+  height    Int      @default(800)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tables Table[]
+
+  @@id([tenantId, id])
+  // Active-only partial unique on (tenantId, name) + active-sort index added via raw SQL.
+  @@map("floor_plans")
+}
+
+model Table {
+  tenantId      String      @map("tenant_id")
+  id            String      @default(cuid())
+  floorPlanId   String      @map("floor_plan_id")
+  label         String
+  capacity      Int?
+  area          String?
+  shape         TableShape  @default(RECTANGLE)
+  positionX     Int         @map("position_x")
+  positionY     Int         @map("position_y")
+  width         Int
+  height        Int
+  rotation      Int         @default(0)
+  currentStatus TableStatus @default(AVAILABLE) @map("current_status")
+  version       Int         @default(1)
+  notes         String?
+  isActive      Boolean     @default(true) @map("is_active")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  floorPlan     FloorPlan      @relation(fields: [tenantId, floorPlanId], references: [tenantId, id])
+  qrContexts    QrContext[]
+  orderSessions OrderSession[]
+  orders        Order[]
+  bills         Bill[]
+
+  @@id([tenantId, id])
+  // Partial indexes (active label unique, active by floor_plan, active by current_status) via raw SQL.
+  @@map("tables")
+}
+
+model QrContext {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  // Provenance
+  tableId    String? @map("table_id")
+  replacesId String? @map("replaces_id")
+
+  // Public identity
+  token       String        @unique
+  label       String?
+  notes       String?
+  contextType QrContextType @default(STOREFRONT) @map("context_type")
+
+  // Lifecycle
+  isActive  Boolean   @default(true) @map("is_active")
+  expiresAt DateTime? @map("expires_at")
+  version   Int       @default(1)
+
+  // Lifecycle accountability
+  createdById        String?               @map("created_by_id")
+  deactivatedAt      DateTime?             @map("deactivated_at")
+  deactivatedById    String?               @map("deactivated_by_id")
+  deactivationReason QrDeactivationReason? @map("deactivation_reason")
+
+  // Analytics counters
+  scanCount     Int       @default(0) @map("scan_count")
+  lastScannedAt DateTime? @map("last_scanned_at")
+  printCount    Int       @default(0) @map("print_count")
+  lastPrintedAt DateTime? @map("last_printed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  table         Table?         @relation(fields: [tenantId, tableId], references: [tenantId, id])
+  replaces      QrContext?     @relation("QrContextChain", fields: [tenantId, replacesId], references: [tenantId, id])
+  replacedBy    QrContext[]    @relation("QrContextChain")
+  createdBy     User?          @relation("QrContextCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deactivatedBy User?          @relation("QrContextDeactivatedBy", fields: [deactivatedById], references: [id], onDelete: SetNull)
+  orderSessions OrderSession[]
+  orders        Order[]
+
+  @@id([tenantId, id])
+  // Partial indexes (active per tenant, one-active-per-table unique, stale-cleanup, regen-chain) via raw SQL.
+  @@map("qr_contexts")
+}
+
+model OrderSession {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  // Provenance
+  qrContextId String? @map("qr_context_id")
+  tableId     String? @map("table_id")
+  tableRef    String? @map("table_ref")
+
+  // Lifecycle
+  status       OrderSessionStatus       @default(ACTIVE)
+  closedReason OrderSessionCloseReason? @map("closed_reason")
+  version      Int                      @default(1)
+
+  // Operational metadata
+  partySize Int?    @map("party_size") @db.SmallInt
+  notes     String?
+
+  // Running session totals
+  subtotalCents Int @default(0) @map("subtotal_cents")
+  totalCents    Int @default(0) @map("total_cents")
+  orderCount    Int @default(0) @map("order_count")
+
+  // Lifecycle timestamps
+  openedAt       DateTime  @default(now()) @map("opened_at")
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
+  closedAt       DateTime? @map("closed_at")
+
+  // Accountability
+  openedById String? @map("opened_by_id")
+  serverId   String? @map("server_id")
+  closedById String? @map("closed_by_id")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  qrContext QrContext? @relation(fields: [tenantId, qrContextId], references: [tenantId, id])
+  table     Table?     @relation(fields: [tenantId, tableId], references: [tenantId, id])
+  openedBy  User?      @relation("SessionOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  server    User?      @relation("SessionServedBy", fields: [serverId], references: [id], onDelete: SetNull)
+  closedBy  User?      @relation("SessionClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  carts     Cart[]
+  orders    Order[]
+  bills     Bill[]
+
+  @@id([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, openedAt(sort: Desc)])
+  // Partial indexes (one-ACTIVE-per-table unique, cleanup, etc.) via raw SQL.
+  @@map("order_sessions")
+}
+
+model Cart {
+  tenantId        String               @map("tenant_id")
+  id              String               @default(cuid())
+  sessionId       String               @map("session_id")
+  status          CartStatus           @default(ACTIVE)
+  version         Int                  @default(1)
+  abandonedReason CartAbandonedReason? @map("abandoned_reason")
+  closedById      String?              @map("closed_by_id")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session  OrderSession @relation(fields: [tenantId, sessionId], references: [tenantId, id])
+  closedBy User?        @relation("CartClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  items    CartItem[]
+
+  @@id([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, sessionId])
+  // Partial unique (one ACTIVE per session) via raw SQL.
+  @@map("carts")
+}
+
+model CartItem {
+  tenantId        String   @map("tenant_id")
+  id              String   @default(cuid())
+  cartId          String   @map("cart_id")
+  menuItemId      String   @map("menu_item_id")
+  quantity        Int
+  unitPriceCents  Int      @map("unit_price_cents")
+  variantSnapshot Json?    @map("variant_snapshot")
+  optionsSnapshot Json?    @map("options_snapshot")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cart     Cart     @relation(fields: [tenantId, cartId], references: [tenantId, id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+
+  @@id([tenantId, id])
+  @@index([tenantId, cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  tenantId            String       @map("tenant_id")
+  id                  String       @default(cuid())
+  sessionId           String?      @map("session_id")
+  qrContextId         String?      @map("qr_context_id")
+  tableId             String?      @map("table_id")
+  orderDate           DateTime     @map("order_date") @db.Date
+  orderNumber         String       @map("order_number")
+  orderToken          String       @unique @map("order_token")
+  orderTokenExpiresAt DateTime?    @map("order_token_expires_at")
+  status              OrderStatus  @default(SUBMITTED)
+  serviceModel        ServiceModel @map("service_model")
+  payTiming           PayTiming    @map("pay_timing")
+  source              OrderSource  @default(STOREFRONT_QR)
+  tableRef            String?      @map("table_ref")
+
+  // Monetary breakdown (integer cents)
+  subtotalCents      Int      @map("subtotal_cents")
+  discountCents      Int      @default(0) @map("discount_cents")
+  taxCents           Int      @default(0) @map("tax_cents")
+  serviceChargeCents Int      @default(0) @map("service_charge_cents")
+  totalCents         Int      @map("total_cents")
+  currency           Currency @default(USD)
+
+  notes String?
+
+  // Optimistic concurrency
+  version Int @default(1)
+
+  // Cancellation accountability
+  cancellationReason OrderCancellationReason? @map("cancellation_reason")
+  cancelledById      String?                  @map("cancelled_by_id")
+
+  // Manual / staff-entered orders
+  createdById String? @map("created_by_id")
+
+  // Customer Identity
+  userId           String? @map("user_id")
+  tenantCustomerId String? @map("tenant_customer_id")
+  locale           String  @default("en")
+
+  // Customer-facing ETA
+  estimatedReadyAt DateTime? @map("estimated_ready_at")
+
+  // Lifecycle transition timestamps
+  submittedAt DateTime? @map("submitted_at")
+  preparingAt DateTime? @map("preparing_at")
+  readyAt     DateTime? @map("ready_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session        OrderSession?        @relation(fields: [tenantId, sessionId], references: [tenantId, id])
+  qrContext      QrContext?           @relation(fields: [tenantId, qrContextId], references: [tenantId, id])
+  table          Table?               @relation(fields: [tenantId, tableId], references: [tenantId, id])
+  cancelledBy    User?                @relation("OrderCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+  createdBy      User?                @relation("OrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  user           User?                @relation("OrderUser", fields: [userId], references: [id], onDelete: SetNull)
+  tenantCustomer TenantCustomer?      @relation(fields: [tenantId, tenantCustomerId], references: [tenantId, id])
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  billOrders     BillOrder[]
+  kitchenTickets KitchenTicket[]
+
+  @@id([tenantId, id])
+  @@unique([tenantId, orderDate, orderNumber], map: "orders_tenant_day_number_unique")
+  @@index([tenantId, status])
+  @@index([tenantId, sessionId])
+  @@index([tenantId, qrContextId])
+  @@index([tenantId, tableId])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  tenantId   String  @map("tenant_id")
+  id         String  @default(cuid())
+  orderId    String  @map("order_id")
+  menuItemId String? @map("menu_item_id")
+  itemName   String  @map("item_name")
+
+  variantSnapshot Json? @map("variant_snapshot")
+  optionsSnapshot Json? @map("options_snapshot")
+
+  quantity          Int
+  unitPriceCents    Int @map("unit_price_cents")
+  lineSubtotalCents Int @map("line_subtotal_cents")
+  lineTotalCents    Int @map("line_total_cents")
+
+  notes String?
+
+  // Per-line kitchen workflow
+  kitchenStatus TicketStatus? @map("kitchen_status")
+  preparedAt    DateTime?     @map("prepared_at")
+  readyAt       DateTime?     @map("ready_at")
+
+  // Per-line cancellation
+  isCancelled            Boolean                  @default(false) @map("is_cancelled")
+  cancellationReason     OrderCancellationReason? @map("cancellation_reason")
+  cancellationReasonText String?                  @map("cancellation_reason_text")
+  cancelledAt            DateTime?                @map("cancelled_at")
+  cancelledById          String?                  @map("cancelled_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order       Order     @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  menuItem    MenuItem? @relation(fields: [tenantId, menuItemId], references: [tenantId, id])
+  cancelledBy User?     @relation("OrderItemCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId, orderId])
+  @@index([tenantId, menuItemId])
+  // Partial index on (tenantId, kitchenStatus) via raw SQL.
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+  orderId  String @map("order_id")
+
+  // Transition
+  fromStatus         String?                  @map("from_status")
+  toStatus           String                   @map("to_status")
+  cancellationReason OrderCancellationReason? @map("cancellation_reason")
+  reason             String?
+
+  // Actor (aligned with audit_logs)
+  actorType   AuditActorType @map("actor_type")
+  actorLabel  String?        @map("actor_label")
+  changedById String?        @map("changed_by_id")
+
+  // Correlation
+  requestId String? @map("request_id")
+  metadata  Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order     Order  @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  changedBy User?  @relation("OrderStatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId, orderId, createdAt])
+  // Partial indexes (request_id, CANCELLED-segment) via raw SQL.
+  @@map("order_status_history")
+}
+
+model IdempotencyKey {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+
+  key             String
+  endpoint        String
+  requestBodyHash String @map("request_body_hash")
+
+  responseCode Int  @map("response_code")
+  responseBody Json @map("response_body")
+
+  // Actor (aligned with append-only logs)
+  actorType  AuditActorType @map("actor_type")
+  actorLabel String?        @map("actor_label")
+  userId     String?        @map("user_id")
+
+  // Correlation
+  requestId String? @map("request_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, key, endpoint])
+  @@index([expiresAt])
+  // Partial indexes (request_id, user_id) via raw SQL.
+  @@map("idempotency_keys")
+}
+
+// =============================================================================
+// BILLING — bills, payments
+// =============================================================================
+
+model Bill {
+  tenantId   String     @map("tenant_id")
+  id         String     @default(cuid())
+  sessionId  String?    @map("session_id")
+  tableId    String?    @map("table_id")
+  tableRef   String?    @map("table_ref")
+  billNumber String     @map("bill_number")
+  status     BillStatus @default(OPEN)
+
+  // Monetary breakdown (integer cents)
+  subtotalCents      Int      @default(0) @map("subtotal_cents")
+  discountCents      Int      @default(0) @map("discount_cents")
+  taxCents           Int      @default(0) @map("tax_cents")
+  serviceChargeCents Int      @default(0) @map("service_charge_cents")
+  tipCents           Int      @default(0) @map("tip_cents")
+  totalCents         Int      @default(0) @map("total_cents")
+  amountPaidCents    Int      @default(0) @map("amount_paid_cents")
+  currency           Currency @default(USD)
+
+  notes   String?
+  version Int     @default(1)
+
+  // Closure accountability
+  paidAt     DateTime? @map("paid_at")
+  closedById String?   @map("closed_by_id")
+
+  // Void accountability
+  voidedAt   DateTime? @map("voided_at")
+  voidedById String?   @map("voided_by_id")
+  voidReason String?   @map("void_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session    OrderSession? @relation(fields: [tenantId, sessionId], references: [tenantId, id])
+  table      Table?        @relation(fields: [tenantId, tableId], references: [tenantId, id])
+  closedBy   User?         @relation("BillClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  voidedBy   User?         @relation("BillVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  billOrders BillOrder[]
+  payments   Payment[]
+
+  @@id([tenantId, id])
+  @@unique([tenantId, billNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, sessionId])
+  @@index([tenantId, tableId])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("bills")
+}
+
+model BillOrder {
+  tenantId String   @map("tenant_id")
+  billId   String   @map("bill_id")
+  orderId  String   @map("order_id")
+  addedAt  DateTime @default(now()) @map("added_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bill   Bill   @relation(fields: [tenantId, billId], references: [tenantId, id], onDelete: Cascade)
+  order  Order  @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+
+  @@id([tenantId, billId, orderId])
+  @@index([tenantId, orderId])
+  @@map("bill_orders")
+}
+
+model Payment {
+  tenantId String        @map("tenant_id")
+  id       String        @default(cuid())
+  billId   String        @map("bill_id")
+  method   PaymentMethod
+  provider String?
+  status   PaymentStatus @default(INITIATED)
+
+  amountCents         Int      @map("amount_cents")
+  refundedAmountCents Int      @default(0) @map("refunded_amount_cents")
+  currency            Currency @default(USD)
+
+  // Gateway integration
+  reference        String?
+  idempotencyKey   String? @map("idempotency_key")
+  gatewayEventId   String? @map("gateway_event_id")
+  gatewaySignature String? @map("gateway_signature")
+  gatewayData      Json?   @map("gateway_data")
+
+  version Int @default(1)
+
+  // Lifecycle transitions
+  initiatedAt DateTime? @map("initiated_at")
+  pendingAt   DateTime? @map("pending_at")
+  succeededAt DateTime? @map("succeeded_at")
+  failedAt    DateTime? @map("failed_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  // Failure detail
+  failureCode    String? @map("failure_code")
+  failureMessage String? @map("failure_message")
+
+  // Confirmation accountability
+  confirmedAt   DateTime? @map("confirmed_at")
+  confirmedById String?   @map("confirmed_by_id")
+
+  // Refund accountability
+  refundedAt   DateTime? @map("refunded_at")
+  refundedById String?   @map("refunded_by_id")
+  refundReason String?   @map("refund_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bill        Bill   @relation(fields: [tenantId, billId], references: [tenantId, id], onDelete: Cascade)
+  confirmedBy User?  @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  refundedBy  User?  @relation("PaymentRefunder", fields: [refundedById], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId, billId])
+  @@index([tenantId, status])
+  // Partial indexes (reference, gateway_event_id unique, expires_at) via raw SQL.
+  @@map("payments")
+}
+
+// =============================================================================
+// KITCHEN — real-time ticket display
+// =============================================================================
+
+model KitchenTicket {
+  tenantId     String       @map("tenant_id")
+  id           String       @default(cuid())
+  orderId      String       @map("order_id")
+  ticketNumber String       @map("ticket_number")
+  status       TicketStatus @default(NEW)
+  serviceModel ServiceModel @map("service_model")
+  tableRef     String?      @map("table_ref")
+  priority     Int          @default(0)
+
+  version Int @default(1)
+
+  // Lifecycle transitions
+  startedAt        DateTime? @map("started_at")
+  readyAt          DateTime? @map("ready_at")
+  completedAt      DateTime? @map("completed_at")
+  cancelledAt      DateTime? @map("cancelled_at")
+  expediteAt       DateTime? @map("expedite_at")
+  estimatedReadyAt DateTime? @map("estimated_ready_at")
+  printedAt        DateTime? @map("printed_at")
+
+  // Accountability
+  startedById        String?                  @map("started_by_id")
+  markedReadyById    String?                  @map("marked_ready_by_id")
+  completedById      String?                  @map("completed_by_id")
+  cancelledById      String?                  @map("cancelled_by_id")
+  cancellationReason OrderCancellationReason? @map("cancellation_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order         Order                @relation(fields: [tenantId, orderId], references: [tenantId, id], onDelete: Cascade)
+  startedBy     User?                @relation("TicketStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+  markedReadyBy User?                @relation("TicketMarkedReadyBy", fields: [markedReadyById], references: [id], onDelete: SetNull)
+  completedBy   User?                @relation("TicketCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  cancelledBy   User?                @relation("TicketCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  events        KitchenTicketEvent[]
+
+  @@id([tenantId, id])
+  @@unique([tenantId, ticketNumber])
+  @@unique([tenantId, orderId])
+  @@index([tenantId, status])
+  // Partial index for kitchen queue (rush-first FIFO) via raw SQL.
+  @@map("kitchen_tickets")
+}
+
+model KitchenTicketEvent {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+  ticketId String @map("ticket_id")
+
+  // Event taxonomy
+  eventType          String                   @default("STATUS_CHANGE") @map("event_type")
+  fromStatus         String?                  @map("from_status")
+  toStatus           String?                  @map("to_status")
+  cancellationReason OrderCancellationReason? @map("cancellation_reason")
+
+  // Actor (aligned with audit_logs)
+  actorType   AuditActorType @map("actor_type")
+  actorLabel  String?        @map("actor_label")
+  changedById String?        @map("changed_by_id")
+
+  // Correlation
+  requestId String? @map("request_id")
+  reason    String?
+  metadata  Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticket    KitchenTicket @relation(fields: [tenantId, ticketId], references: [tenantId, id], onDelete: Cascade)
+  changedBy User?         @relation("TicketEventChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId, ticketId, createdAt])
+  // Partial indexes (request_id, CANCELLED-segment) via raw SQL.
+  @@map("kitchen_ticket_events")
+}
+
+// =============================================================================
+// ADMIN — audit logs
+// =============================================================================
+
+/// Cross-tenant append-only event journal. tenantId is NULLABLE for
+/// platform-level events (e.g., tenant.created by platform admin). Single-column
+/// id PK because junction-style (nullable tenant_id) — per convention exception.
+model AuditLog {
+  id       String  @id @default(cuid())
+  tenantId String? @map("tenant_id")
+
+  // Categorization
+  category AuditCategory
+  severity AuditSeverity @default(INFO)
+  action   String // free-form 'entity.verb'
+
+  // Actor
+  actorType  AuditActorType @map("actor_type")
+  actorLabel String?        @map("actor_label")
+  userId     String?        @map("user_id")
+
+  // Subject
+  entityType String? @map("entity_type")
+  entityId   String? @map("entity_id")
+
+  // State diff
+  previousState Json? @map("previous_state")
+  newState      Json? @map("new_state")
+  metadata      Json?
+
+  // Correlation
+  requestId      String? @map("request_id")
+  authSessionId  String? @map("auth_session_id")
+  idempotencyKey String? @map("idempotency_key")
+
+  // Provenance
+  ipAddress String? @map("ip_address") @db.Inet
+  userAgent String? @map("user_agent")
+
+  // Lifecycle
+  retentionUntil DateTime? @map("retention_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([entityType, entityId])
+  @@index([action, createdAt(sort: Desc)])
+  @@index([category, createdAt(sort: Desc)])
+  // Partial indexes (user_id, severity-alert, request_id, retention) via raw SQL.
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────
+// SECTION: Customer Profiles (per-tenant)
+// ─────────────────────────────────────────────────────────
+
+/// Per-tenant customer profile. Links a global User to a specific Tenant
+/// with tenant-isolated CRM data (loyalty, spend, visit tracking).
+/// A single User can be a customer at many tenants.
+model TenantCustomer {
+  tenantId String @map("tenant_id")
+  id       String @default(cuid())
+  userId   String @map("user_id")
+
+  // CRM & Loyalty fields
+  isVip           Boolean   @default(false) @map("is_vip")
+  totalSpentCents Int       @default(0) @map("total_spent_cents")
+  totalOrders     Int       @default(0) @map("total_orders")
+  loyaltyPoints   Int       @default(0) @map("loyalty_points")
+  customerSegment String?   @map("customer_segment") // e.g. REGULAR, CHURN_RISK, WHALE
+  lastVisitAt     DateTime? @map("last_visit_at")
+  internalNotes   String?   @map("internal_notes")
+  dateOfBirth     DateTime? @map("date_of_birth")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@id([tenantId, id])
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@index([tenantId, lastVisitAt(sort: Desc)])
+  @@map("tenant_customers")
+}
+
+// ─────────────────────────────────────────────────────────
+// SECTION: Marketing & Notifications (per-tenant)
+// ─────────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  tenantId      String   @map("tenant_id")
+  id            String   @default(cuid())
+  
+  name          String
+  title         String
+  body          String
+  icon          String?
+  buttonText    String?  @map("button_text")
+  actionUrl     String?  @map("action_url")
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notifications TenantNotification[]
+
+  @@id([tenantId, id])
+  @@map("notification_templates")
+}
+
+model TenantNotification {
+  tenantId      String   @map("tenant_id")
+  id            String   @default(cuid())
+  userId        String   @map("user_id")
+  templateId    String?  @map("template_id")
+  
+  title         String
+  body          String
+  icon          String?
+  actionUrl     String?  @map("action_url")
+  
+  isRead        Boolean  @default(false) @map("is_read")
+  readAt        DateTime? @map("read_at")
+  clickedAt     DateTime? @map("clicked_at")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template      NotificationTemplate? @relation(fields: [tenantId, templateId], references: [tenantId, id], onDelete: SetNull)
+
+  @@id([tenantId, id])
+  @@index([tenantId, userId, createdAt(sort: Desc)])
+  @@index([tenantId, templateId])
+  @@map("tenant_notifications")
+}

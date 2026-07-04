@@ -1,0 +1,37 @@
+{
+  "name": "@xfos/frontend-platform-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build",
+    "start": "next start -p 3003",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "build:tokens": "tsx design-system/build-tokens.ts",
+    "clean": "rm -rf .next node_modules"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.23.8",
+    "@xfos/contracts-enums": "workspace:*",
+    "@xfos/contracts-bff-platform-admin": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.5.4",
+    "tailwindcss": "3.4.7",
+    "postcss": "8.4.41",
+    "autoprefixer": "10.4.19",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "@types/node": "20.14.14",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "vitest": "2.0.5",
+    "tsx": "4.16.2"
+  }
+}

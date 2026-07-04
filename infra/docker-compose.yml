@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: xfos-postgres
+    environment:
+      POSTGRES_USER: xfos
+      POSTGRES_PASSWORD: xfos
+      POSTGRES_DB: xfos
+    ports:
+      - '5432:5432'
+    volumes:
+      - xfos_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U xfos -d xfos']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: xfos-redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: xfos-minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: xfos_admin
+      MINIO_ROOT_PASSWORD: xfos_password
+    volumes:
+      - xfos_minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Auto-create bucket on startup
+  minio-create-bucket:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 xfos_admin xfos_password;
+      /usr/bin/mc mb myminio/xfos-media || true;
+      /usr/bin/mc anonymous set public myminio/xfos-media;
+      exit 0;
+      "
+
+volumes:
+  xfos_pg_data:
+  xfos_minio_data:

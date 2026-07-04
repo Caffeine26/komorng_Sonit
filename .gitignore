@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Env files (never commit secrets)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+*.lcov
+
+# Prisma
+database/node_modules/.prisma/
+prisma/dev.db*
+
+# Next.js
+next-env.d.ts
+
+# Docker volumes
+infra/.volumes/
+
+# Claude Code worktrees and runtime
+.claude/
+node-compile-cache/
+
+# Agent files
+.agent/
+
+# Local Progress Reports
+Progress/

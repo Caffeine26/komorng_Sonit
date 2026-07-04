@@ -1,0 +1,12 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: xfos-postgres-test
+    environment:
+      POSTGRES_USER: xfos
+      POSTGRES_PASSWORD: xfos
+      POSTGRES_DB: xfos_test
+    ports:
+      - '5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data

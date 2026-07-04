@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-brand: #E91E63;
+  --color-brand-muted: #FFF0F5;
+  --color-foreground: #09090b;
+  --color-muted: #71717a;
+  --color-border: #F3F4F6;
+  --color-bg-page: #FFFFFF;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-alt: #F9FAFB;
+  --glass-light: rgba(255, 255, 255, 0.55);
+  --glass-medium: rgba(255, 255, 255, 0.42);
+  --glass-strong: rgba(255, 255, 255, 0.72);
+  --glass-dark: rgba(9, 9, 11, 0.55);
+  --glass-brand: rgba(233, 30, 99, 0.12);
+  --glass-brand-mid: rgba(233, 30, 99, 0.22);
+  --glass-border: rgba(255, 255, 255, 0.32);
+  --glass-border-dark: rgba(255, 255, 255, 0.10);
+  --glass-border-brand: rgba(233, 30, 99, 0.20);
+  --text-on-dark: rgba(255, 255, 255, 0.95);
+  --text-on-dark-sub: rgba(255, 255, 255, 0.60);
+  --blur-subtle: blur(10px) saturate(140%);
+  --blur-standard: blur(22px) saturate(160%);
+  --blur-deep: blur(40px) saturate(180%);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 12px 32px rgba(0,0,0,0.10);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.12), 0 24px 64px rgba(0,0,0,0.14);
+  --shadow-highlight: inset 0 1px 0 rgba(255,255,255,0.55);
+  --shadow-brand-glow: 0 0 32px rgba(233,30,99,0.28);
+  --shadow-brand-soft: 0 0 20px rgba(233,30,99,0.16);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 180ms;
+  --dur-standard: 280ms;
+  --dur-slow: 420ms;
+  /* [uiux] Responsive Variables */
+  --touch-target: 44px;
+  --screen-padding: 1.5rem;
+}
+
+@layer base {
+  /* [uiux] Global Font Switching Logic (Master Rule) */
+  html, body, h1, h2, h3, h4, h5, h6, p, span, a, input, button, select, textarea {
+    font-family: 'Inter', 'Plus Jakarta Sans', var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif !important;
+  }
+
+  html[lang="km"] body {
+    font-family: var(--font-kantumruy), sans-serif !important;
+    color: #1f1f1f;            /* Soft Dark Charcoal Text */
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* [uiux] Khmer script often needs slightly more vertical breathing room */
+  html[lang="km"] * {
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer utilities {
+  /* [uiux] Custom Stealth Scroll Utility */
+  /* This hides the visual scrollbar while keeping the swipe/scroll functionality active. */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
