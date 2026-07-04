@@ -5,7 +5,7 @@
   "description": "XFOS — multi-tenant SaaS food-ordering platform (Cambodia). Monorepo root.",
   "packageManager": "pnpm@9.7.0",
   "engines": {
-    "node": ">=20.11.0",
+    "node": "20.x",
     "pnpm": ">=9.0.0"
   },
   "scripts": {
