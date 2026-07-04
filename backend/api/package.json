@@ -5,7 +5,7 @@
   "description": "XFOS backend — NestJS modular monolith with hexagonal domains",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "pnpm --filter @xfos/database prisma:generate && nest build",
+    "build": "pnpm --filter \"@xfos/contracts-*\" build && pnpm --filter @xfos/database prisma:generate && nest build",
     "postinstall": "pnpm --filter @xfos/database prisma:generate",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
