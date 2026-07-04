@@ -32,6 +32,12 @@ generator client {
   previewFeatures = ["omitApi", "relationJoins"]
 }
 
+generator custom_client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi", "relationJoins"]
+  output          = "../src/generated/client"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
