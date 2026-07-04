@@ -47,8 +47,17 @@ if (!process.env.VERCEL) {
 let initializedApp: any = null;
 
 export default async (req: any, res: any) => {
-  if (!initializedApp) {
-    initializedApp = await bootstrap(server);
+  try {
+    if (!initializedApp) {
+      initializedApp = await bootstrap(server);
+    }
+    return server(req, res);
+  } catch (error: any) {
+    console.error("Bootstrap/Execution Error:", error);
+    res.status(500).json({
+      error: "FUNCTION_BOOTSTRAP_ERROR",
+      message: error.message || String(error),
+      stack: error.stack || null
+    });
   }
-  return server(req, res);
 };
