@@ -199,9 +199,7 @@ export class TelegramBotAdapter implements OnModuleInit, OnModuleDestroy, ITeleg
       );
 
       // 4. Send the nice Order Submitted message with Inline Button (mimicking normal customer flow)
-      const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL && process.env.NEXT_PUBLIC_STOREFRONT_URL !== 'http://localhost:3000'
-        ? process.env.NEXT_PUBLIC_STOREFRONT_URL
-        : 'https://caulomic-plumy-janette.ngrok-free.dev';
+      const storefrontBaseUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL || 'http://localhost:3000';
       const receiptUrl = `${storefrontBaseUrl}/o/${order.orderToken}?telegram=true`;
 
       const itemsList = order.items.map((item: any) => {
