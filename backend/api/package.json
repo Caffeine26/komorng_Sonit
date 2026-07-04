@@ -39,6 +39,7 @@
     "@xfos/database": "workspace:*",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
+    "express": "^4.19.2",
     "jsonwebtoken": "9.0.2",
     "multer": "^2.1.1",
     "passport": "^0.7.0",
