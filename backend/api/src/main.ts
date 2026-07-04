@@ -36,7 +36,7 @@ export async function bootstrap(expressInstance: express.Express) {
 
 if (!process.env.VERCEL) {
   bootstrap(server).then(() => {
-    const port = Number(process.env.API_PORT ?? 4000);
+    const port = Number(process.env.PORT || process.env.API_PORT || 4000);
     const host = process.env.API_HOST ?? '0.0.0.0';
     server.listen(port, host, () => {
       Logger.log(`XFOS API ready locally at http://${host}:${port}`, 'Bootstrap');
