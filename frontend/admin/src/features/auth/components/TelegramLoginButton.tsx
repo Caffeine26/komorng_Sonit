@@ -37,8 +37,7 @@ export function TelegramLoginButton({ botName, botId, onAuth, className, buttonT
       `https://oauth.telegram.org/auth` +
       `?bot_id=${encodeURIComponent(botId)}` +
       `&origin=${encodeURIComponent(origin)}` +
-      `&request_access=write` +
-      `&embed=1`;
+      `&request_access=write`;
     const popup = window.open(authUrl, 'TelegramLogin', 'width=550,height=470,resizable=yes,scrollbars=yes,status=yes');
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== 'https://oauth.telegram.org') return;
