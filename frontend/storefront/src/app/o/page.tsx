@@ -111,11 +111,11 @@ function OrderCard({
 
 export default function OrderHistoryPage() {
   const router = useRouter();
-  const { qrToken, tenantSlug: contextTenantSlug } = useQrSessionContext();
+  const { qrToken } = useQrSessionContext();
   const { locale } = useLocale();
   const { t } = useTranslation();
   
-  const [tenantSlug, setTenantSlug] = useState<string>(contextTenantSlug || "");
+  const [tenantSlug, setTenantSlug] = useState<string>("");
 
   useEffect(() => {
     if (!tenantSlug) {

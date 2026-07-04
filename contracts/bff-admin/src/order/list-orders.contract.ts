@@ -28,6 +28,7 @@ export const listOrdersItemSchema = z.object({
   })).optional(),
   needsAttention: z.boolean().optional(),
   customerName: z.string().nullable().optional(),
+  orderToken: z.string(),
 });
 
 export type ListOrdersItem = z.infer<typeof listOrdersItemSchema>;
